@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Model files (large)
+*.bin
+*.pt
+*.pth
+*.onnx
+models/
+*.h5
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# AWS
+.aws/
+*.pem
+
+# Kubernetes
+kubeconfig
+
+# Results
+load-testing/results/*.json
+load-testing/results/*.csv
+
+# OS
+.DS_Store
+Thumbs.db
