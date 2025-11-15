@@ -1,12 +1,12 @@
 """
 Shared model loading and inference logic for both Lambda and Kubernetes deployments.
 """
-import logging
 from typing import Dict, Any
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from logger_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Global variables to cache model and tokenizer
 _model = None

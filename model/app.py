@@ -1,21 +1,17 @@
 """
 FastAPI application for Kubernetes deployment.
 """
-import logging
 import time
 from typing import Dict, Any
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from logger_config import setup_logger
 from model_loader import predict_sentiment, load_model
 import uvicorn
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# setup logger
+logger = setup_logger(__name__)
 
 # Initialize FastAPI app
 app = FastAPI(

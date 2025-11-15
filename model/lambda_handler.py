@@ -7,24 +7,21 @@ import logging
 import time
 from typing import Dict, Any
 
-# configure logging
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-
-# import model loader
+from logger_config import setup_logger
 from model_loader import predict_sentiment, load_model
 
-# load model once at cold start - this will be cached as long as the container is warm -- no need to load model again if the container's resources are not taken -- applies for the awsLambda
+logger = setup_logger(__name__, level=logging.INFO, log_to_file=False)
 
+# Load model once at cold start
 logger.info("Loading model at cold start...")
 try:
     load_model()
-    logger.info("Model loaded sucessfully")
+    logger.info("Model loaded successfully")
 except Exception as e:
     logger.error(f"Failed to load model: {str(e)}")
     raise
 
-def lambda_handler(event: Dict[str, Any], content: Any) -> Dict[str, Any]:
+def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     AWS Lambda handler function.
 
@@ -39,7 +36,7 @@ def lambda_handler(event: Dict[str, Any], content: Any) -> Dict[str, Any]:
 
     try:
         # Parse request body
-        if isinstance(event.get("body", str)):
+        if isinstance(event.get("body"), str):
             body = json.loads(event["body"])
         else:
             body = event.get("body", {})
@@ -56,10 +53,10 @@ def lambda_handler(event: Dict[str, Any], content: Any) -> Dict[str, Any]:
                 })
             }
         
-        # run prediction
+        # Run prediction
         result = predict_sentiment(text)
 
-        # calculate latency
+        # Calculate latency
         latency = time.time() - start_time
         logger.info(f"Request processed in {latency:.4f}s")
 

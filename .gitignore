@@ -39,3 +39,10 @@ load-testing/results/*.csv
 # OS
 .DS_Store
 Thumbs.db
+
+# files
+plan.md
+# Logs
+logs/
+*.log
+*.log.*
