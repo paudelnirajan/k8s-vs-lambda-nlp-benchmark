@@ -15,8 +15,7 @@ class Settings:
 
     # Deployment endpoints
     LAMBDA_ENDPOINT: str = os.getenv(
-        "LAMBDA_ENDPOINT",
-        "https://zyzss2dbwd.execute-api.us-east-1.amazonaws.com/prod/predict"
+        "LAMBDA_ENDPOINT"
     )
     KUBERNETES_ENDPOINT: Optional[str] = os.getenv(
         "KUBERNETES_ENDPOINT",
