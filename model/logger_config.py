@@ -8,9 +8,16 @@ from pathlib import Path
 from typing import Optional
 from logging.handlers import RotatingFileHandler
 
-# Default log directory
-LOG_DIR = Path(__file__).parent.parent / "logs"
-LOG_DIR.mkdir(exist_ok=True)  # Create logs directory if it doesn't exist
+# Default log directory - only create when needed, not at import time
+def get_log_dir():
+    """Get log directory, creating it only if not in Lambda."""
+    if os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+        # In Lambda, use /tmp if we need file logging (but we won't)
+        return Path("/tmp")
+    else:
+        log_dir = Path(__file__).parent.parent / "logs"
+        log_dir.mkdir(exist_ok=True)
+        return log_dir
 
 
 def setup_logger(
@@ -37,6 +44,10 @@ def setup_logger(
     Returns:
         Configured logger instance
     """
+    # Auto-detect Lambda environment and disable file logging
+    if os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+        log_to_file = False
+    
     # Default format: timestamp, logger name, level, message
     if format_string is None:
         format_string = (
@@ -68,11 +79,12 @@ def setup_logger(
         if log_file_path is None:
             # Use module name as log file name
             log_filename = f"{name.replace('.', '_')}.log"
-            log_file_path = LOG_DIR / log_filename
+            log_file_path = get_log_dir() / log_filename
         else:
             log_file_path = Path(log_file_path)
-            # Ensure parent directory exists
-            log_file_path.parent.mkdir(parents=True, exist_ok=True)
+            # Ensure parent directory exists (only if not in Lambda)
+            if not os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+                log_file_path.parent.mkdir(parents=True, exist_ok=True)
         
         # Create rotating file handler
         # This automatically rotates logs when they reach max_bytes
@@ -94,15 +106,17 @@ def setup_logger(
     return logger
 
 
-def get_logger(name: str = __name__) -> logging.Logger:
+def get_logger(name: str = None) -> logging.Logger:
     """
     Get a logger with default configuration.
     This is a convenience function that modules can use.
     
     Args:
-        name: Logger name (defaults to calling module's __name__)
+        name: Logger name (defaults to 'nlp_inference' if not provided)
         
     Returns:
         Configured logger instance
     """
+    if name is None:
+        name = "nlp_inference"
     return setup_logger(name=name)

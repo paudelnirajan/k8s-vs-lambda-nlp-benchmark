@@ -1,0 +1,18 @@
+# Use AWS Lambda Python base image (x86_64 for AWS Lambda compatibility)
+FROM --platform=linux/amd64 public.ecr.aws/lambda/python:3.9
+
+# Install build dependencies
+RUN yum install -y gcc
+
+# Copy and install requirements
+COPY requirements.txt ${LAMBDA_TASK_ROOT}/
+RUN pip install --no-cache-dir -r ${LAMBDA_TASK_ROOT}/requirements.txt
+
+# Copy entire model package to Lambda root
+COPY model/ ${LAMBDA_TASK_ROOT}/
+
+# Ensure __init__.py exists
+RUN touch ${LAMBDA_TASK_ROOT}/__init__.py
+
+# Set entrypoint - Lambda will look for lambda_handler.lambda_handler in the root
+CMD [ "lambda_handler.lambda_handler" ]

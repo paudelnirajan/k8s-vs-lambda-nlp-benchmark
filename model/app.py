@@ -11,7 +11,7 @@ from model_loader import predict_sentiment, load_model
 import uvicorn
 
 # setup logger
-logger = setup_logger(__name__)
+logger = setup_logger("app")
 
 # Initialize FastAPI app
 app = FastAPI(

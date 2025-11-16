@@ -4,22 +4,44 @@ AWS Lambda handler for sentiment analysis.
 
 import json
 import logging
+import sys
 import time
+import traceback
+import os
 from typing import Dict, Any
 
-from logger_config import setup_logger
-from model_loader import predict_sentiment, load_model
+# Ensure cache directories exist before importing transformers
+os.makedirs('/tmp/transformers_cache', exist_ok=True)
+os.makedirs('/tmp/hf_cache', exist_ok=True)
+os.environ['TRANSFORMERS_CACHE'] = '/tmp/transformers_cache'
+os.environ['HF_HOME'] = '/tmp/hf_cache'
 
+try:
+    # Try relative import first (for package imports in Lambda)
+    from .logger_config import setup_logger
+    from .model_loader import predict_sentiment, load_model
+except ImportError:
+    # Fall back to absolute import (for direct execution)
+    from logger_config import setup_logger
+    from model_loader import predict_sentiment, load_model
+    
 logger = setup_logger(__name__, level=logging.INFO, log_to_file=False)
 
-# Load model once at cold start
-logger.info("Loading model at cold start...")
-try:
-    load_model()
-    logger.info("Model loaded successfully")
-except Exception as e:
-    logger.error(f"Failed to load model: {str(e)}")
-    raise
+# Global flag to track if model is loaded
+_model_loaded = False
+
+def _ensure_model_loaded():
+    """Ensure model is loaded, load if not already loaded."""
+    global _model_loaded
+    if not _model_loaded:
+        logger.info("Loading model at cold start...")
+        try:
+            load_model()
+            _model_loaded = True
+            logger.info("Model loaded successfully")
+        except Exception as e:
+            logger.error(f"Failed to load model: {str(e)}", exc_info=True)
+            raise
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
@@ -32,6 +54,23 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     Returns:
         API Gateway response
     """
+    # Load model on first invocation (lazy loading)
+    try:
+        _ensure_model_loaded()
+    except Exception as e:
+        logger.error(f"Model initialization failed: {str(e)}", exc_info=True)
+        return {
+            "statusCode": 500,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*"
+            },
+            "body": json.dumps({
+                "error": "Model initialization failed",
+                "message": str(e)
+            })
+        }
+    
     start_time = time.time()
 
     try:
@@ -69,7 +108,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             "body": json.dumps(result)
         }
     except ValueError as e:
-        logger.error(f"Validation error: {str(e)}")
+        logger.error(f"Validation error: {str(e)}", exc_info=True)
         return {
             "statusCode": 400,
             "headers": {
@@ -81,7 +120,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             })
         }
     except Exception as e:
-        logger.error(f"Error processing request: {str(e)}")
+        logger.error(f"Error processing request: {str(e)}", exc_info=True)
         return {
             "statusCode": 500,
             "headers": {
@@ -90,6 +129,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             },
             "body": json.dumps({
                 "error": "Internal server error",
-                "message": str(e)
+                "message": f"Error: {str(e)}",
+                "type": type(e).__name__
             })
         }

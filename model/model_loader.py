@@ -4,9 +4,20 @@ Shared model loading and inference logic for both Lambda and Kubernetes deployme
 from typing import Dict, Any
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
-from logger_config import get_logger
+import os
 
-logger = get_logger(__name__)
+# Set Hugging Face cache directory to Lambda's writable /tmp
+os.environ['TRANSFORMERS_CACHE'] = '/tmp/transformers_cache'
+os.environ['HF_HOME'] = '/tmp/hf_cache'
+
+try:
+    # Try relative import first (for package imports)
+    from .logger_config import get_logger
+except ImportError:
+    # Fall back to absolute import (for direct execution)
+    from logger_config import get_logger
+
+logger = get_logger("model_loader")
 
 # Global variables to cache model and tokenizer
 _model = None
@@ -18,12 +29,20 @@ def get_device():
     """Get the appropriate device (CPU or GPU if available)."""
     global _device
     if _device is None:
-        # For macOS, prefer CPU or MPS (Metal Performance Shaders)
-        if torch.backends.mps.is_available():
-            _device = "mps"
-        elif torch.cuda.is_available():
-            _device = "cuda"
-        else:
+        # AWS Lambda doesn't support MPS, always use CPU there
+        # For local development, use MPS on macOS if available
+        try:
+            if torch.cuda.is_available():
+                _device = "cuda"
+            elif torch.backends.mps.is_available() and not torch.backends.mps.is_built():
+                # MPS available but not properly built - fall back to CPU
+                _device = "cpu"
+            elif torch.backends.mps.is_available():
+                _device = "mps"
+            else:
+                _device = "cpu"
+        except Exception:
+            # If anything goes wrong, default to CPU (safest for Lambda)
             _device = "cpu"
         logger.info(f"Using device: {_device}")
     return _device
