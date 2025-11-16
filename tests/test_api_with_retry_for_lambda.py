@@ -71,7 +71,7 @@ def call_api_with_retry(text: str, max_retries: int = MAX_RETRIES) -> Dict[str, 
     return None
 
 if __name__ == "__main__":
-    text = sys.argv[1] if len(sys.argv) > 1 else "I love this!"
+    text = sys.argv[1] if len(sys.argv) > 1 else "I hate this!"
     
     print(" Testing NLP Sentiment Analysis API")
     print(f" Text: {text}")
