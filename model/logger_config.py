@@ -8,6 +8,12 @@ from pathlib import Path
 from typing import Optional
 from logging.handlers import RotatingFileHandler
 
+try:
+    import colorlog
+    HAS_COLORLOG = True
+except ImportError:
+    HAS_COLORLOG = False
+
 # Default log directory - only create when needed, not at import time
 def get_log_dir():
     """Get log directory, creating it only if not in Lambda."""
@@ -49,11 +55,31 @@ def setup_logger(
         log_to_file = False
     
     # Default format: timestamp, logger name, level, message
-    if format_string is None:
-        format_string = (
-            '%(asctime)s - %(name)s - %(levelname)s - '
-            '[%(filename)s:%(lineno)d] - %(message)s'
+    file_format = (
+        '%(asctime)s | %(levelname)-8s | %(name)-20s | '
+        '%(filename)s:%(lineno)-4d | %(message)s'
+    )
+
+    if HAS_COLORLOG:
+        console_format = (
+            '%(log_color)s%(asctime)s | %(levelname)-8s | %(name)-20s | '
+            '%(filename)s:%(lineno)-4d | %(message)s'
         )
+        colors = {
+            'DEBUG': 'cyan',
+            'INFO': 'green',
+            'WARNING': 'yellow',
+            'ERROR': 'red',
+            'CRITICAL': 'red,bg_white',
+        }
+    else:
+        console_format = file_format
+        colors = None
+
+    # Use custom format if provided
+    if format_string:
+        file_format = format_string
+        console_format = format_string
     
     # Create logger
     logger = logging.getLogger(name)
@@ -64,30 +90,35 @@ def setup_logger(
 
     logger.setLevel(level)
     
-    # Create formatter
-    formatter = logging.Formatter(format_string)
-
     # Create console handler (stdout)
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(level)
-    console_handler.setFormatter(formatter)
+    
+    if HAS_COLORLOG and not format_string:
+        console_formatter = colorlog.ColoredFormatter(
+            console_format,
+            datefmt='%Y-%m-%d %H:%M:%S',
+            log_colors=colors,
+            reset=True,
+            style='%'
+        )
+    else:
+        console_formatter = logging.Formatter(console_format, datefmt='%Y-%m-%d %H:%M:%S')
+        
+    console_handler.setFormatter(console_formatter)
     logger.addHandler(console_handler)
 
     # Create file handler (if enabled)
     if log_to_file:
         # Determine log file path
         if log_file_path is None:
-            # Use module name as log file name
             log_filename = f"{name.replace('.', '_')}.log"
             log_file_path = get_log_dir() / log_filename
         else:
             log_file_path = Path(log_file_path)
-            # Ensure parent directory exists (only if not in Lambda)
             if not os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
                 log_file_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Create rotating file handler
-        # This automatically rotates logs when they reach max_bytes
         file_handler = RotatingFileHandler(
             filename=str(log_file_path),
             maxBytes=max_bytes,
@@ -95,12 +126,13 @@ def setup_logger(
             encoding='utf-8'
         )
         file_handler.setLevel(level)
-        file_handler.setFormatter(formatter)
+        # Use clean file format
+        file_formatter = logging.Formatter(file_format, datefmt='%Y-%m-%d %H:%M:%S')
+        file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
         
         logger.info(f"Logging to file: {log_file_path}")
 
-    # Prevent propagation to root logger (optional, but cleaner)
     logger.propagate = False
 
     return logger

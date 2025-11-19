@@ -10,8 +10,8 @@ from logger_config import setup_logger
 from model_loader import predict_sentiment, load_model
 import uvicorn
 
-# setup logger
-logger = setup_logger("app")
+from logger_config import get_logger
+logger = get_logger("app")
 
 # Initialize FastAPI app
 app = FastAPI(

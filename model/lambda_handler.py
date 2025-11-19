@@ -9,6 +9,7 @@ import time
 import traceback
 import os
 from typing import Dict, Any
+from .logger_config import get_logger
 
 # Ensure cache directories exist before importing transformers
 os.makedirs('/tmp/transformers_cache', exist_ok=True)
@@ -25,7 +26,7 @@ except ImportError:
     from logger_config import setup_logger
     from model_loader import predict_sentiment, load_model
     
-logger = setup_logger(__name__, level=logging.INFO, log_to_file=False)
+logger = get_logger(__name__)
 
 # Global flag to track if model is loaded
 _model_loaded = False
