@@ -22,11 +22,11 @@ class AnalysisResponse(BaseModel):
     """Response model for sentiment analysis."""
     text: str
     sentiment: str
-    confidence: float  # Changed from 'score' to match Lambda
+    confidence: float  
     scores: Optional[Dict[str, float]] = None  # Optional detailed scores
     deployment: str
-    retry_attempts: int  # Fixed typo from 'retry_attempt'
-    response_time_ms: float  # Changed from int to float
+    retry_attempts: int  
+    response_time_ms: float  
     timestamp: str
 
     class Config:
@@ -46,7 +46,7 @@ class AnalysisResponse(BaseModel):
 class HealthResponse(BaseModel):
     """Response model for health check."""
     status: str
-    lambda_endpoint: str
+    lambda_endpoint: Optional[str]
     kubernetes_endpoint: Optional[str]
     timestamp: str
 
