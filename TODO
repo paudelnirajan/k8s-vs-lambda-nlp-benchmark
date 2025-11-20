@@ -1,0 +1,5 @@
+[DONE] Create a simple backend (FastAPI) with retry logic
+[DONE] Test both Lambda and Kubernetes with it
+
+[x] Cold start problem (How to mitigate this??)
+[x] Improve the cost calculation to be accurate
