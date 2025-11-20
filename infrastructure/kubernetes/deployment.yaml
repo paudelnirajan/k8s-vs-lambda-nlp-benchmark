@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nlp-sentiment-deployment
+  labels:
+    app: nlp-sentiment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nlp-sentiment
+  template: 
+    metadata:
+      labels:
+        app: nlp-sentiment
+    spec:
+      containers:
+      - name: nlp-sentiment-container
+        image: nlp-sentiment-k8s:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        env:
+        - name: LOG_LEVEL
+          value: "INFO"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 20
