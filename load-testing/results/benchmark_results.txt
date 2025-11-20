@@ -1,0 +1,37 @@
+Benchmark Report - 2025-11-19 21:48:07
+==================================================
+
+Results for AWS Lambda:
+  Samples: 10
+  Avg:     1.1811s
+  Min:     0.1905s
+  Max:     8.9212s
+  P50:     0.3886s
+  P95:     12.7385s
+  First 3: 0.3885s, 0.3886s, 0.4192s
+  Last 3:  0.1905s, 0.2275s, 8.9212s
+
+Cost Estimation (AWS Lambda):
+  Cost per 1M requests: $59.2560
+  (Based on avg duration: 1.1811s @ 3GB RAM)
+  Monthly Fixed Cost:   $0.00
+
+
+Results for Kubernetes (EKS):
+  Samples: 10
+  Avg:     0.2517s
+  Min:     0.1915s
+  Max:     0.3894s
+  P50:     0.2139s
+  P95:     0.4067s
+  First 3: 0.2345s, 0.2706s, 0.3099s
+  Last 3:  0.1917s, 0.1915s, 0.1919s
+
+Cost Estimation (EKS + t3.small):
+  Monthly Fixed Cost:   $86.98 (regardless of traffic)
+  Hourly Cost:          $0.1208
+  *Note: EKS is cheaper only if you have high sustained traffic.
+
+
+--- FINAL VERDICT ---
+🏆 Kubernetes is the winner! (4.69x faster)
