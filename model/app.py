@@ -6,11 +6,15 @@ from typing import Dict, Any
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from logger_config import setup_logger
-from model_loader import predict_sentiment, load_model
 import uvicorn
 
-from logger_config import get_logger
+try:
+    from .logger_config import setup_logger, get_logger
+    from .model_loader import predict_sentiment, load_model
+except ImportError:
+    from logger_config import setup_logger, get_logger
+    from model_loader import predict_sentiment, load_model
+
 logger = get_logger("app")
 
 # Initialize FastAPI app
