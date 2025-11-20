@@ -31,7 +31,7 @@ aws ecr get-login-password --region ${REGION} | docker login --username AWS --pa
 echo -e "${YELLOW}Building Docker image for x86_64...${NC}"
 PROJECT_ROOT="$(dirname "$0")/.."
 cd "${PROJECT_ROOT}"
-docker buildx build --platform linux/amd64 -t ${ECR_REPO_NAME}:${IMAGE_TAG} -f model/Dockerfile .
+docker buildx build --platform linux/amd64 -t ${ECR_REPO_NAME}:${IMAGE_TAG} -f model/Dockerfile.lambda .
 
 # Step 4: Tag image
 docker tag ${ECR_REPO_NAME}:${IMAGE_TAG} ${ECR_URI}:${IMAGE_TAG}
