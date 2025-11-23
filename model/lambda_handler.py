@@ -9,7 +9,6 @@ import time
 import traceback
 import os
 from typing import Dict, Any
-from .logger_config import get_logger
 
 # Ensure cache directories exist before importing transformers
 os.makedirs('/tmp/transformers_cache', exist_ok=True)
@@ -18,14 +17,14 @@ os.environ['TRANSFORMERS_CACHE'] = '/tmp/transformers_cache'
 os.environ['HF_HOME'] = '/tmp/hf_cache'
 
 try:
-    # Try relative import first (for package imports in Lambda)
-    from .logger_config import setup_logger
-    from .model_loader import predict_sentiment, load_model
-except ImportError:
-    # Fall back to absolute import (for direct execution)
-    from logger_config import setup_logger
+    # Attempt absolute import first (Works in Lambda where files are at root)
+    from logger_config import setup_logger, get_logger
     from model_loader import predict_sentiment, load_model
-    
+except ImportError:
+    # Fallback to relative import (Works locally when running as a module)
+    from .logger_config import setup_logger, get_logger
+    from .model_loader import predict_sentiment, load_model
+
 logger = get_logger(__name__)
 
 # Global flag to track if model is loaded
