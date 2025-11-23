@@ -9,3 +9,5 @@
 [x] Can't implement the prometheus -- will need cloudwatch metrics
 
 [x] Make the k8s adn lambda requests -- async, The lambda attempt logic is blocking request to kubernetes
+
+[ ] Create a nice GUI (Dashboard) to visualize all metrics (Lambda vs K8s)

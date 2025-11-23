@@ -12,7 +12,7 @@ if [ -f "$PROJECT_ROOT/.env" ]; then
 fi
 
 # Use provided args or fall back to .env values
-LAMBDA_ENDPOINT="${1:-$LAMBDA_ENDPOINT}"
+# LAMBDA_ENDPOINT="${1:-$LAMBDA_ENDPOINT}"
 KUBERNETES_ENDPOINT="${2:-$KUBERNETES_ENDPOINT}"
 
 # Check if endpoints are provided
@@ -37,12 +37,12 @@ echo "Lambda Base URL:     $LAMBDA_BASE"
 echo "Kubernetes Base URL: $KUBERNETES_BASE"
 echo ""
 
-echo "=== Lambda Metrics ==="
+# echo "=== Lambda Metrics ==="
 # Fetch metrics from the base URL + /metrics
-curl -s "$LAMBDA_BASE/metrics" | head -50 || echo "Failed to fetch Lambda metrics"
-echo ""
-echo "... (showing first 50 lines)"
-echo ""
+# curl -s "$LAMBDA_BASE/metrics" | head -50 || echo "Failed to fetch Lambda metrics"
+# echo ""
+# echo "... (showing first 50 lines)"
+# echo ""
 
 echo "=== Kubernetes Metrics ==="
 # Fetch metrics from the base URL + /metrics
@@ -52,5 +52,5 @@ echo "... (showing first 50 lines)"
 echo ""
 
 echo "To view all metrics:"
-echo "  curl $LAMBDA_BASE/metrics | less"
+# echo "  curl $LAMBDA_BASE/metrics | less"
 echo "  curl $KUBERNETES_BASE/metrics | less"
