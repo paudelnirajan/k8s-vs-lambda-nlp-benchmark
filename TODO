@@ -6,6 +6,6 @@
 
 [Done] Metrics gathering using prometheus for kubernetes, backend -- failures and success
 
-[x] Can't implement the prometheus in lambda-- will need cloudwatch metrics
+[x] Can't implement the prometheus -- will need cloudwatch metrics
 
 [x] Make the k8s adn lambda requests -- async, The lambda attempt logic is blocking request to kubernetes

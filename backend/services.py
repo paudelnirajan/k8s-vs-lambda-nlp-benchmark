@@ -6,8 +6,15 @@ import time
 from typing import Dict, Any
 from model.logger_config import get_logger
 from .config import settings
+from prometheus_client import Counter
 
 logger = get_logger(__name__)
+
+RETRY_ATTEMPTS = Counter(
+    'backend_retry_attempts_total',
+    'Total retry attempts by deployment',
+    ['deployment', 'reason']
+)
 
 class SentimentAnalysisService:
     """Service for sentiment analysis with retry logic."""
@@ -61,6 +68,7 @@ class SentimentAnalysisService:
                 
                 # Timeout (cold start)
                 elif response.status_code == 504:
+                    RETRY_ATTEMPTS.labels(deployment=deployment, reason="504_timeout").inc()
                     last_error = "504 Gateway Timeout"
                     logger.warning(f"{last_error}")
                     
@@ -76,6 +84,7 @@ class SentimentAnalysisService:
                     raise Exception(f"{response.status_code}: {response.json().get('message', response.text)}")
             
             except requests.exceptions.Timeout:
+                RETRY_ATTEMPTS.labels(deployment=deployment, reason="request_timeout").inc()
                 last_error = "Request Timeout"
                 logger.warning(f"{last_error}")
                 

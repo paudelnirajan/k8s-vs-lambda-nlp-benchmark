@@ -5,7 +5,7 @@ FROM --platform=linux/amd64 public.ecr.aws/lambda/python:3.9
 RUN yum install -y gcc
 
 # Copy and install requirements
-COPY requirements.txt ${LAMBDA_TASK_ROOT}/
+COPY model/requirements.txt ${LAMBDA_TASK_ROOT}/
 RUN pip install --no-cache-dir -r ${LAMBDA_TASK_ROOT}/requirements.txt
 
 # Copy entire model package to Lambda root

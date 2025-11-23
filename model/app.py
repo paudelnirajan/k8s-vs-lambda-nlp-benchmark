@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 import uvicorn
+from prometheus_fastapi_instrumentator import Instrumentator
 
 try:
     from .logger_config import setup_logger, get_logger
@@ -23,6 +24,8 @@ app = FastAPI(
     description="DistilBERT sentiment analysis service",
     version="1.0.0"
 )
+
+Instrumentator().instrument(app).expose(app)
 
 class SentimentRequest(BaseModel):
     """Request model for sentiment analysis."""
@@ -53,15 +56,6 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "nlp-sentiment-analysis"
-    }
-
-@app.get("/metrics")
-async def metrics():
-    """Prometheus metrics endpoint (basic implementation)."""
-    # TODO: add proper prometheus metrics later
-    return {
-        "status": "metrics endpoint",
-        "note": "Full Prometheus metrics to be implemented"
     }
 
 @app.post("/predict", response_model=SentimentResponse)

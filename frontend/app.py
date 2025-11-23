@@ -10,7 +10,11 @@ import statistics
 # Page Configuration
 st.set_page_config(
     page_title="NLP Deployment Benchmark",
+<<<<<<< HEAD
     page_icon="🔎",
+=======
+    page_icon="👎👍",
+>>>>>>> frontend
     layout="wide"
 )
 
