@@ -95,7 +95,7 @@ This project uses Terraform for full infrastructure management.
     terraform apply
     ```
 
-5.  **Verify**
+5.  **Verify**<br>
     The output will provide the API Gateway URL and K8s LoadBalancer hostname. Add these to your `.env` file.
 
 ## Testing
