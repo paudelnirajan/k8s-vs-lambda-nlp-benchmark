@@ -33,7 +33,7 @@ PROJECT_ROOT="$(dirname "$0")/.."
 cd "${PROJECT_ROOT}"
 
 # Build using the K8s Dockerfile
-docker buildx build --platform linux/amd64 -t ${ECR_URI}:${IMAGE_TAG} -f model/Dockerfile.k8s .
+docker buildx build --platform linux/amd64 --provenance=false -t ${ECR_URI}:${IMAGE_TAG} -f model/Dockerfile.k8s .
 docker push ${ECR_URI}:${IMAGE_TAG}
 
 # 4. Update kubeconfig

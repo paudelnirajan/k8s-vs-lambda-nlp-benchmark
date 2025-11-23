@@ -44,6 +44,9 @@ ROOT_RESOURCE_ID=$(aws apigateway get-resources \
   --query 'items[?path==`/`].id' \
   --output text)
 
+# ==================================================================================
+# 1. SETUP /predict (POST)
+# ==================================================================================
 echo "Checking for /predict resource..."
 
 # 1. Try to FIND the resource
@@ -69,7 +72,7 @@ else
   echo "Found existing /predict resource."
 fi
 
-echo "Checking for POST method..."
+echo "Checking for POST method on /predict..."
 # Check if POST method already exists
 EXISTING_METHOD=$(aws apigateway get-method \
   --rest-api-id ${API_ID} \
@@ -92,57 +95,77 @@ else
   echo "POST method already exists. Skipping creation."
 fi
 
-echo "Setting up Lambda integration..."
-# Check if integration already exists
-EXISTING_INTEGRATION=$(aws apigateway get-integration \
+echo "Setting up Lambda integration for /predict..."
+aws apigateway put-integration \
   --rest-api-id ${API_ID} \
   --resource-id ${PREDICT_RESOURCE_ID} \
   --http-method POST \
+  --type AWS_PROXY \
+  --integration-http-method POST \
+  --uri "arn:aws:apigateway:${REGION}:lambda:path/2015-03-31/functions/${FUNCTION_ARN}/invocations" \
   --region ${REGION} \
-  --query 'type' \
+  --output text > /dev/null
+
+# ==================================================================================
+# 2. SETUP /metrics (GET)
+# ==================================================================================
+echo "Checking for /metrics resource..."
+
+METRICS_RESOURCE_ID=$(aws apigateway get-resources \
+  --rest-api-id ${API_ID} \
+  --region ${REGION} \
+  --query "items[?path=='/metrics'].id" \
+  --output text)
+
+if [ -z "$METRICS_RESOURCE_ID" ]; then
+  echo "Creating /metrics resource..."
+  METRICS_RESOURCE_ID=$(aws apigateway create-resource \
+    --rest-api-id ${API_ID} \
+    --parent-id ${ROOT_RESOURCE_ID} \
+    --path-part metrics \
+    --region ${REGION} \
+    --query 'id' \
+    --output text)
+else
+  echo "Found existing /metrics resource."
+fi
+
+echo "Checking for GET method on /metrics..."
+EXISTING_METRICS_METHOD=$(aws apigateway get-method \
+  --rest-api-id ${API_ID} \
+  --resource-id ${METRICS_RESOURCE_ID} \
+  --http-method GET \
+  --region ${REGION} \
+  --query 'httpMethod' \
   --output text 2>/dev/null || echo "")
 
-if [ -z "$EXISTING_INTEGRATION" ] || [ "$EXISTING_INTEGRATION" != "AWS_PROXY" ]; then
-  echo "Creating/updating Lambda integration..."
-  aws apigateway put-integration \
+if [ -z "$EXISTING_METRICS_METHOD" ]; then
+  echo "Creating GET method for /metrics..."
+  aws apigateway put-method \
     --rest-api-id ${API_ID} \
-    --resource-id ${PREDICT_RESOURCE_ID} \
-    --http-method POST \
-    --type AWS_PROXY \
-    --integration-http-method POST \
-    --uri "arn:aws:apigateway:${REGION}:lambda:path/2015-03-31/functions/${FUNCTION_ARN}/invocations" \
+    --resource-id ${METRICS_RESOURCE_ID} \
+    --http-method GET \
+    --authorization-type NONE \
     --region ${REGION} \
     --output text > /dev/null
-  
-  # Set timeout to max (29 seconds is hard limit for API Gateway)
-  aws apigateway update-integration \
-    --rest-api-id ${API_ID} \
-    --resource-id ${PREDICT_RESOURCE_ID} \
-    --http-method POST \
-    --patch-operations op=replace,path=/timeoutInMillis,value=29000 \
-    --region ${REGION} \
-    --output text > /dev/null 2>&1 || true
 else
-  echo "Lambda integration already exists. Updating URI..."
-  aws apigateway put-integration \
-    --rest-api-id ${API_ID} \
-    --resource-id ${PREDICT_RESOURCE_ID} \
-    --http-method POST \
-    --type AWS_PROXY \
-    --integration-http-method POST \
-    --uri "arn:aws:apigateway:${REGION}:lambda:path/2015-03-31/functions/${FUNCTION_ARN}/invocations" \
-    --region ${REGION} \
-    --output text > /dev/null
-  
-  # Set timeout to max (29 seconds is hard limit for API Gateway)
-  aws apigateway update-integration \
-    --rest-api-id ${API_ID} \
-    --resource-id ${PREDICT_RESOURCE_ID} \
-    --http-method POST \
-    --patch-operations op=replace,path=/timeoutInMillis,value=29000 \
-    --region ${REGION} \
-    --output text > /dev/null 2>&1 || true
+  echo "GET method for /metrics already exists."
 fi
+
+echo "Setting up Lambda integration for /metrics..."
+aws apigateway put-integration \
+  --rest-api-id ${API_ID} \
+  --resource-id ${METRICS_RESOURCE_ID} \
+  --http-method GET \
+  --type AWS_PROXY \
+  --integration-http-method POST \
+  --uri "arn:aws:apigateway:${REGION}:lambda:path/2015-03-31/functions/${FUNCTION_ARN}/invocations" \
+  --region ${REGION} \
+  --output text > /dev/null
+
+# ==================================================================================
+# DEPLOY & PERMISSIONS
+# ==================================================================================
 
 echo "Granting API Gateway permission to invoke Lambda..."
 (aws lambda add-permission \
@@ -155,34 +178,22 @@ echo "Granting API Gateway permission to invoke Lambda..."
   --output text > /dev/null) || echo "Permission may already exist (this is OK)"
 
 echo "Deploying API..."
-# Check if deployment already exists for this stage
-EXISTING_DEPLOYMENT=$(aws apigateway get-deployments \
+# Force a new deployment to ensure changes take effect
+aws apigateway create-deployment \
   --rest-api-id ${API_ID} \
+  --stage-name prod \
   --region ${REGION} \
-  --query "items[?stageName=='prod'].id" \
-  --output text 2>/dev/null | head -n 1)
-
-if [ -n "$EXISTING_DEPLOYMENT" ]; then
-  echo "Updating existing deployment..."
-  aws apigateway create-deployment \
-    --rest-api-id ${API_ID} \
-    --stage-name prod \
-    --region ${REGION} \
-    --output text > /dev/null
-else
-  echo "Creating new deployment..."
-  aws apigateway create-deployment \
-    --rest-api-id ${API_ID} \
-    --stage-name prod \
-    --region ${REGION} \
-    --output text > /dev/null
-fi
+  --output text > /dev/null
 
 # Get API endpoint
 ENDPOINT="https://${API_ID}.execute-api.${REGION}.amazonaws.com/prod/predict"
+METRICS_ENDPOINT="https://${API_ID}.execute-api.${REGION}.amazonaws.com/prod/metrics"
+
 echo ""
 echo "✅ API Gateway setup complete!"
-echo "API Endpoint: ${ENDPOINT}"
+echo "API Endpoint:     ${ENDPOINT}"
+echo "Metrics Endpoint: ${METRICS_ENDPOINT}"
 echo ""
 echo "Test with:"
 echo "curl -X POST ${ENDPOINT} -H 'Content-Type: application/json' -d '{\"text\": \"I love this!\"}'"
+echo "curl ${METRICS_ENDPOINT}"
