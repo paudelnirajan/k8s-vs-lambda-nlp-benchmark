@@ -116,7 +116,6 @@ def predict_sentiment(text: str) -> Dict[str, Any]:
         # Get results
         # scores = predictions[0].cpu().numpy()
 
-        # FIXME: this below is the fix for MAC
         predictions_cpu = predictions.cpu()
         scores = predictions_cpu[0].detach().numpy() 
         

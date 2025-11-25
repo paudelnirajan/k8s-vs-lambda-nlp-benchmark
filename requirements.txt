@@ -8,3 +8,5 @@ prometheus-fastapi-instrumentator
 
 httpx
 locust
+
+groq

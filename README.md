@@ -124,6 +124,38 @@ bash scripts/run-metrics.sh
   - **Lambda**: Uses CloudWatch Logs and Metrics.
   - **Kubernetes**: Exposes Prometheus metrics at `/metrics`.
 
+
+# Dashboard & Benchmarking (New Feature)
+
+### Installation
+``
+pip install streamlit pandas plotly groq 
+``
+
+### Run the Dashboard
+```
+streamlit run frontend/app.py
+```
+
+This launches a web app where you can:
+
+| Feature              | Description                                     |
+| -------------------- | ----------------------------------------------- |
+| API Explorer         | Send live test requests to Lambda / Kubernetes  |
+| Benchmarking         | Headless Locust load testing with charts        |
+| Metrics Dashboard    | Latency, throughput, failure rate visualization |
+| AI Comparison Report | LLM-generated performance analysis              |
+
+### GenAI Benchmark Analysis
+
+Once a test completes, the dashboard lets you generate an Executive Summary using Llama 3 (Groq). This includes:
+
+* SRE-style performance interpretation
+* Bottleneck analysis
+* Lambda vs Kubernetes comparisons
+*Recommendations for scaling and optimization
+
+
 ## License
 
 This project is licensed under the MIT License.
