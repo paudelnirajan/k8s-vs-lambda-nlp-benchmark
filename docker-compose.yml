@@ -11,6 +11,8 @@ services:
 
   frontend:
     image: 597727831172.dkr.ecr.us-east-1.amazonaws.com/nlp-frontend:latest
+    volumes:
+      - ./load-testing:/app/load-testing
     ports:
       - "8501:8501"
     env_file:

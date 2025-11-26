@@ -11,7 +11,8 @@ cd infrastructure/terraform
 echo "Initializing Terraform..."
 terraform init
 
-echo "Applying Infrastructure (This may take 10-15 minutes for EKS/EC2)..."
+echo "Applying Infrastructure..."
+# We use auto-approve to skip the "yes" prompt
 terraform apply -auto-approve
 
 # Extract the IP address
@@ -23,8 +24,8 @@ echo "---------------------------------------------------"
 echo "App URL: http://$APP_IP:8501"
 echo "API URL: http://$APP_IP:8000"
 echo "---------------------------------------------------"
-echo "NOTE: The EC2 instance is currently installing Docker and building your app."
-echo "   It may take another 3-5 minutes before the URL is reachable."
+echo "NOTE: The EC2 instance is pulling pre-built images from ECR."
+echo "   It should be ready in ~60-90 seconds."
 echo ""
 echo "   To monitor progress, run this SSH command:"
 echo "   $(terraform output -raw ssh_command)"
