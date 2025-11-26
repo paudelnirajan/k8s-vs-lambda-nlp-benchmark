@@ -30,3 +30,13 @@ output "api_gateway_url" {
 output "k8s_load_balancer_hostname" {
   value = kubernetes_service.nlp_service.status.0.load_balancer.0.ingress.0.hostname
 }
+
+output "app_server_public_ip" {
+  description = "Public IP of the App Server"
+  value       = aws_instance.app_server.public_ip
+}
+
+output "ssh_command" {
+  description = "Command to SSH into the instance"
+  value       = "ssh -i ${local_file.ssh_key.filename} ubuntu@${aws_instance.app_server.public_ip}"
+}

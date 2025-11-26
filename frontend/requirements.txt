@@ -1,0 +1,8 @@
+streamlit
+plotly
+pandas
+httpx
+locust
+groq
+requests
+python-dotenv

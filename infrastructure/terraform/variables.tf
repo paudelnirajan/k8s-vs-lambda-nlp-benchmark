@@ -9,3 +9,9 @@ variable "cluster_name" {
     type = string
     default = "nlp-sentiment-cluster"
 }
+
+variable "github_repo" {
+    description = "URL of the github repo to be cloned on EC2 instance"
+    type = string
+    default = "https://github.com/paudelnirajan/k8s-vs-lambda-nlp-benchmark.git"
+}

@@ -1,0 +1,29 @@
+# Ignore Infrastructure and Terraform
+infrastructure/
+terraform.tfstate
+terraform.tfstate.backup
+.terraform/
+
+# Ignore Git
+.git/
+.gitignore
+
+# Ignore Python Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
+
+# Ignore Test/Benchmark Artifacts
+load-testing/
+tests/
+benchmark_report.html
+*.csv
+logs/
+
+# Ignore Mac System Files
+.DS_Store
