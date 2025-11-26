@@ -1,15 +1,15 @@
 # Serverless vs Kubernetes NLP Inference Benchmark
 
-**STATUS: AWS Lambda & Kubernetes Deployment Complete**
+**Status:** AWS Lambda & Kubernetes Deployment Complete
 
-A comprehensive benchmark comparing AWS Lambda and Kubernetes (EKS) deployments for NLP sentiment analysis using DistilBERT model.
+A comprehensive benchmark comparing AWS Lambda and Kubernetes (EKS) deployments for NLP sentiment analysis using the DistilBERT model.
 
 ## Project Overview
 
 This project implements a sentiment analysis service using the DistilBERT model and deploys it using two cloud architectures:
 
-1. **Serverless Architecture**: AWS Lambda + API Gateway
-2. **Container Orchestration**: AWS EKS (Kubernetes)
+1.  **Serverless Architecture:** AWS Lambda + API Gateway
+2.  **Container Orchestration:** AWS EKS (Kubernetes)
 
 The goal is to benchmark performance, scalability, cost, and latency under various load conditions.
 
@@ -20,13 +20,12 @@ The goal is to benchmark performance, scalability, cost, and latency under vario
 ## Technology Stack
 
 ### Core Components
-
-- **Model**: DistilBERT-base-uncased
-- **Language**: Python 3.9+
-- **Container**: Docker
-- **Orchestration**: Kubernetes (EKS)
-- **Serverless**: AWS Lambda
-- **IaC**: Terraform
+-   **Model:** DistilBERT-base-uncased
+-   **Language:** Python 3.9+
+-   **Container:** Docker
+-   **Orchestration:** Kubernetes (EKS)
+-   **Serverless:** AWS Lambda
+-   **IaC:** Terraform
 
 ## Project Structure
 
@@ -34,128 +33,97 @@ The goal is to benchmark performance, scalability, cost, and latency under vario
 FinalProject/
 ├── README.md
 ├── .env
-├── model/                  \# The shared Model/Worker Code
-│   ├── app.py              \# FastAPI app for K8s & Lambda
-│   ├── lambda\_handler.py   \# Entry point for Lambda
-│   ├── model\_loader.py     \# DistilBERT loader
+├── model/                  # Shared Model/Worker Code
+│   ├── app.py              # FastAPI app for K8s & Lambda
+│   ├── lambda_handler.py   # Entry point for Lambda
+│   ├── model_loader.py     # DistilBERT loader
 │   ├── Dockerfile.k8s
 │   └── Dockerfile.lambda
 │
-├── backend/                \# The Orchestrator
-│   ├── main.py             \# Router (Lambda vs K8s)
-│   └── services.py         \# Retry logic
+├── backend/                # Orchestrator
+│   ├── main.py             # Router (Lambda vs K8s)
+│   └── services.py         # Retry logic
+│
+├── frontend/               # Streamlit Dashboard & Locust
+│   ├── app.py
+│   ├── Dockerfile
+│   └── load-testing/       # Locust configurations
 │
 ├── infrastructure/
-│   ├── terraform/          \# Full IaC definition
+│   ├── terraform/          # IaC definition
 │   │   ├── main.tf
 │   │   ├── lambda.tf
 │   │   ├── kubernetes.tf
 │   │   └── ecr.tf
 │
 └── scripts/
-├── build\_and\_push.sh   \# Docker build helper
-├── run-metrics.sh      \# Metrics fetcher
-└── run-tests.sh        \# Integration tests
+    ├── deploy_all.sh       # One-click deployment
+    ├── build_and_push.sh   # Docker build helper
+    ├── run-metrics.sh      # Metrics fetcher
+    └── run-tests.sh        # Integration tests
 ```
 
-## Deployment Workflow (Terraform)
+## Deployment Workflow
 
 This project uses Terraform for full infrastructure management.
 
 ### Prerequisites
-- AWS CLI configured
-- Terraform installed
-- Docker installed
+-   AWS CLI configured
+-   Terraform installed
+-   Docker installed
 
 ### Deployment Steps
 
-1. **Initialize Terraform**
-   ```bash
-   cd infrastructure/terraform
-   terraform init
-    ```
-
-2.  **Create ECR Repositories**
-
+1.  **Deploy Infrastructure**
+    Run the automated deployment script which initializes Terraform, provisions EC2/EKS/Lambda, and builds the application on the remote server.
     ```bash
-    terraform apply -target=aws_ecr_repository.lambda_repo -target=aws_ecr_repository.k8s_repo
+    bash scripts/deploy_all.sh
     ```
 
-3.  **Build and Push Images**
+2.  **Configure Environment Variables**
+    The deployment script output will provide the API Gateway URL and K8s LoadBalancer hostname.
+    -   Copy your local `.env` file to the server:
+        ```bash
+        scp -i infrastructure/terraform/nlp-project-key.pem .env ubuntu@<APP_IP>:~/.env
+        ```
+    -   SSH into the server and move the file:
+        ```bash
+        ssh -i infrastructure/terraform/nlp-project-key.pem ubuntu@<APP_IP>
+        sudo mv ~/.env /home/ubuntu/app/.env
+        ```
 
+3.  **Restart Application**
+    Reload the containers to apply the new configuration.
     ```bash
-    cd ../..
-    bash scripts/build_and_push.sh
+    cd /home/ubuntu/app
+    sudo docker-compose up -d --force-recreate
     ```
-
-4.  **Deploy Application (Lambda & K8s)**
-
-    ```bash
-    cd infrastructure/terraform
-    terraform apply
-    ```
-
-5.  **Verify**<br>
-    The output will provide the API Gateway URL and K8s LoadBalancer hostname. Add these to your `.env` file.
 
 ## Testing
 
-### Run Integration Tests
+### Dashboard & Benchmarking
+The project includes a Streamlit dashboard for real-time benchmarking.
 
+1.  Access the dashboard at `http://<APP_IP>:8501`.
+2.  **Live Comparison:** Send parallel requests to Lambda and Kubernetes to observe cold starts vs. warm latency.
+3.  **Load Testing:** Execute distributed Locust tests directly from the UI to measure throughput (RPS) and failure rates.
+4.  **AI Analysis:** Generate an SRE-style performance report using LLMs based on the benchmark data.
+
+### Manual Integration Tests
 ```bash
 bash scripts/run-realAPI-tests.sh
-```
-
-### View Metrics
-
-```bash
-bash scripts/run-metrics.sh
 ```
 
 ## Performance Notes
 
 ### Cold Starts
-
-  - **Lambda**: Initial load takes \~60 seconds. The backend handles this via exponential backoff retries.
-  - **Kubernetes**: Pods stay warm, offering consistent low latency (\<200ms).
+-   **Lambda:** Initial load takes ~60 seconds. The backend handles this via exponential backoff retries.
+-   **Kubernetes:** Pods stay warm, offering consistent low latency (<200ms).
 
 ### Monitoring
-
-  - **Lambda**: Uses CloudWatch Logs and Metrics.
-  - **Kubernetes**: Exposes Prometheus metrics at `/metrics`.
-
-
-# Dashboard & Benchmarking (New Feature)
-
-### Installation
-``
-pip install streamlit pandas plotly groq 
-``
-
-### Run the Dashboard
-```
-streamlit run frontend/app.py
-```
-
-This launches a web app where you can:
-
-| Feature              | Description                                     |
-| -------------------- | ----------------------------------------------- |
-| API Explorer         | Send live test requests to Lambda / Kubernetes  |
-| Benchmarking         | Headless Locust load testing with charts        |
-| Metrics Dashboard    | Latency, throughput, failure rate visualization |
-| AI Comparison Report | LLM-generated performance analysis              |
-
-### GenAI Benchmark Analysis
-
-Once a test completes, the dashboard lets you generate an Executive Summary using Llama 3 (Groq). This includes:
-
-* SRE-style performance interpretation
-* Bottleneck analysis
-* Lambda vs Kubernetes comparisons
-*Recommendations for scaling and optimization
-
+-   **Lambda:** Uses CloudWatch Logs and Metrics.
+-   **Kubernetes:** Exposes Prometheus metrics at `/metrics`.
 
 ## License
-
 This project is licensed under the MIT License.
+
