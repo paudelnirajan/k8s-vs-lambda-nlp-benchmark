@@ -1,53 +1,38 @@
-
 # Key Takeaways and Technical Learnings
 
 ## Infrastructure as Code (Terraform)
 
-### Migration from Manual Scripts
-Transitioning from manual AWS CLI scripts to Terraform provided consistency and state management. The modular approach (separating `ec2.tf`, `eks.tf`, `lambda.tf`) allowed for easier debugging and independent resource scaling.
+### Automation & State Management
+Terraform manages the entire lifecycle, from ECR repositories to EKS clusters. We moved from manual resource creation to a fully declared state, preventing configuration drift.
 
-### Resource Dependencies
-Defining explicit dependencies (`depends_on`) is critical when resources rely on the completion of others (e.g., waiting for EKS cluster readiness before deploying Kubernetes manifests).
+### IAM Roles & Instance Profiles
+Instead of hardcoding AWS credentials on the EC2 instance, we attached an **IAM Instance Profile** (`AmazonEC2ContainerRegistryReadOnly`). This allows the server to securely pull Docker images from ECR without storing sensitive keys on disk.
 
-## Containerization & Docker
+## CI/CD & DevOps
 
-### Docker Context & Build Strategy
-A common pitfall is the Docker build context. When building images that require files from multiple directories (e.g., `model/` and `frontend/`), the build context must be set to the project root.
--   **Issue:** `COPY . .` respects `.dockerignore`. If a folder (like `load-testing/`) is ignored, it will be missing in the container, causing runtime errors.
--   **Solution:** Verify `.dockerignore` rules carefully and use `docker-compose build --no-cache` to ensure clean builds when file structures change.
+### Automated Image Builds (GitHub Actions)
+We shifted from building Docker images on the production server (slow, resource-intensive) to a CI/CD pipeline.
+-   **Old Way:** `docker-compose build` on EC2.
+-   **New Way:** GitHub Actions builds images and pushes to **Amazon ECR**. EC2 simply pulls the pre-built images.
+-   **Benefit:** Faster deployment times and guaranteed consistency between environments.
 
-### Cross-Platform Compatibility
-Building Docker images on Apple Silicon (ARM64) for AWS Lambda (x86_64) requires explicit platform flags:
-```bash
-docker build --platform linux/amd64 ...
-```
-Using `--provenance=false` is also recommended for compatibility with older AWS Lambda container loaders.
-
-## Deployment Strategy & Security
-
-### Environment Variable Management
-Handling secrets (API Keys, URLs) in a production-like environment requires careful planning.
--   **Current Approach:** Manual `scp` of `.env` file (Secure but manual).
--   **Industry Standard:** Use **AWS Systems Manager (SSM) Parameter Store** or **AWS Secrets Manager**. Terraform should provision an IAM role allowing the EC2 instance to fetch secrets at runtime, eliminating manual file transfers.
-
-### Continuous Deployment (CD)
-Instead of building images on the production server (which consumes resources and delays startup), a CI/CD pipeline (e.g., GitHub Actions) should build the images, push them to ECR, and simply refresh the ECS/EKS service.
+### Docker Context & Volumes
+We encountered issues where test scripts (`load-testing/`) were missing in the container due to `.dockerignore` rules or caching.
+-   **Solution:** We used **Volume Mounts** in `docker-compose.yml` to map the test scripts from the host directly into the container. This ensures the benchmark engine always has the latest scripts without requiring a full image rebuild.
 
 ## Application Architecture
 
 ### Lambda Cold Starts vs. API Gateway Timeouts
--   **Problem:** Loading large NLP models (DistilBERT) takes ~60s, exceeding the 29s hard timeout of API Gateway.
--   **Solution:** Implemented exponential backoff in the orchestrator backend. The first request acts as a "health check" to warm the container, while subsequent requests succeed.
--   **Optimization:** Using Provisioned Concurrency for Lambda would eliminate this but increase costs.
+-   **Problem:** Loading DistilBERT takes ~60s, exceeding the 29s API Gateway timeout.
+-   **Solution:** The Orchestrator Backend implements exponential backoff. The first request fails (warming the Lambda), and the retry succeeds.
 
 ### Kubernetes Networking
-LoadBalancer services expose the application root. If the application is namespaced or served on a specific path (e.g., `/predict`), the client must append this path explicitly to avoid 404 errors.
+LoadBalancer services take time to provision. Our Terraform outputs and scripts handle this asynchronous nature, but in production, we would use **Ingress Controllers** (ALB) for more robust routing and health checks.
 
-## Observability & Benchmarking
+## Observability & AI Analysis
 
-### Streamlit as a Control Plane
-Using Streamlit with `st.session_state` effectively turns a script into a stateful application. This allows for managing long-running background processes (like Locust load tests) without blocking the UI.
+### Streamlit as an Ops Tool
+Using Streamlit with `st.session_state` effectively turns a Python script into a stateful Operations Dashboard, allowing us to trigger background load tests and visualize results in real-time.
 
-### AI-Driven Observability
-Integrating LLMs (Llama 3 via Groq) to analyze raw CSV metrics offers immediate, high-level insights. Instead of manual graph interpretation, the system acts as an "Automated SRE," highlighting anomalies and bottlenecks in plain English.
-```
+### AI-Driven Insights
+Integrating LLMs (Llama 3 via Groq) to analyze raw CSV metrics offers immediate, high-level insights. The system acts as an "Automated SRE," identifying performance bottlenecks (e.g., "Lambda Latency Spikes due to Cold Starts") that might be missed in raw logs.
