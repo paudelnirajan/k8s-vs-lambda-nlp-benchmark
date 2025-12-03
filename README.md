@@ -82,8 +82,8 @@ This project uses a fully automated CI/CD pipeline.
 
 Simply push your code to the `main` branch.
 
-GitHub Actions will automatically:
-
+GitHub Actions will automatically:<br>
+**NOTE:** You need to have ECR repos named "nlp-backend" and "nlp-frontend" for these github actions to be succesfull.
 1. Build Docker images for Backend and Frontend.
 2. Authenticate with AWS.
 3. Push images to **Amazon ECR**.

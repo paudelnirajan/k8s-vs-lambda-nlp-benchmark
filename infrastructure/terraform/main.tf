@@ -61,6 +61,11 @@ module "eks" {
 
       instance_types = ["t3.small"]
       capacity_type  = "ON_DEMAND"
+      
+      # Add ECR pull permissions
+      iam_role_additional_policies = {
+        AmazonEC2ContainerRegistryReadOnly = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+      }
     }
   }
 
