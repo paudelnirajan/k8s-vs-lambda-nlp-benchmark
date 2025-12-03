@@ -10,4 +10,6 @@
 
 [x] Make the k8s adn lambda requests -- async, The lambda attempt logic is blocking request to kubernetes
 
-[ ] Create a nice GUI (Dashboard) to visualize all metrics (Lambda vs K8s)
+[Done] Create a nice GUI (Dashboard) to visualize all metrics (Lambda vs K8s)
+
+[x] have to upload the env file manually -- need to automate this, but don't know how??
