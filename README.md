@@ -1,7 +1,5 @@
 # Serverless vs Kubernetes NLP Inference Benchmark
 
-**Status:** CI/CD & Infrastructure Automated
-
 A comprehensive benchmark comparing AWS Lambda and Kubernetes (EKS) deployments for NLP sentiment analysis using the DistilBERT model.
 
 ## Project Overview
@@ -17,191 +15,327 @@ The goal is to benchmark performance, scalability, cost, and latency under vario
 
 ![Architecture](Architecture.png)
 
+### Infrastructure Components
+
+```
++------------------------------------------------------------------+
+|                     INFRASTRUCTURE OVERVIEW                       |
++------------------------------------------------------------------+
+|                                                                   |
+|  1. LAMBDA (Serverless)                                           |
+|     Endpoint: https://xxx.execute-api.../prod/predict             |
+|     Container: nlp-sentiment-analysis                             |
+|     Use: Benchmarking serverless cold starts                      |
+|                                                                   |
+|  2. KUBERNETES (EKS)                                              |
+|     Endpoint: http://xxx.elb.amazonaws.com/predict                |
+|     Container: nlp-sentiment-k8s (2 replicas)                     |
+|     Use: Benchmarking container orchestration                     |
+|                                                                   |
+|  3. EC2 INSTANCE                                                  |
+|     Port 8501: Streamlit Frontend (nlp-frontend)                  |
+|     Port 8000: FastAPI Backend (nlp-backend)                      |
+|     Use: User-facing app that calls Lambda/K8s                    |
+|                                                                   |
++------------------------------------------------------------------+
+```
+
 ## Technology Stack
 
 ### Core Components
 
-* **Model:** DistilBERT-base-uncased
-* **Language:** Python 3.9+
-* **Container:** Docker
-* **Orchestration:** Kubernetes (EKS)
-* **Serverless:** AWS Lambda
-* **CI/CD:** GitHub Actions + AWS ECR
-* **IaC:** Terraform
+| Component | Technology |
+|-----------|------------|
+| Model | DistilBERT-base-uncased |
+| Language | Python 3.9+ |
+| Container | Docker |
+| Orchestration | Kubernetes (EKS) |
+| Serverless | AWS Lambda |
+| CI/CD | GitHub Actions + AWS ECR |
+| IaC | Terraform |
 
 ## Project Structure
 
 ```
 FinalProject/
 ├── README.md
-├── .env
+├── .env                      # Environment variables (not in git)
 ├── .github/
-│   └── workflows/        # CI/CD Pipeline
-│       └── deploy.yml    # Builds & pushes images to ECR on push
-├── model/                # Shared Model/Worker Code
-│   ├── app.py            # FastAPI app for K8s & Lambda
-│   ├── lambda_handler.py # Entry point for Lambda
-│   └── model_loader.py   # DistilBERT loader
+│   └── workflows/
+│       └── deploy.yml        # CI/CD: Builds & pushes images to ECR
 │
-├── backend/              # Orchestrator
-│   └── main.py           # Router (Lambda vs K8s)
+├── model/                    # Shared Model/Worker Code
+│   ├── app.py                # FastAPI app for K8s & Lambda
+│   ├── lambda_handler.py     # Entry point for Lambda
+│   ├── model_loader.py       # DistilBERT loader
+│   ├── Dockerfile.lambda     # Lambda container image
+│   └── Dockerfile.k8s        # Kubernetes container image
 │
-├── frontend/             # Streamlit Dashboard & Locust
+├── backend/                  # Orchestrator Service
+│   ├── main.py               # Router (Lambda vs K8s)
+│   └── Dockerfile
+│
+├── frontend/                 # Streamlit Dashboard
 │   ├── app.py
-│   └── load-testing/     # Locust configurations
+│   └── Dockerfile
 │
 ├── infrastructure/
-│   └── terraform/        # IaC definition
-│       ├── main.tf
-│       ├── ec2.tf        # App Server (pulls from ECR)
-│       ├── lambda.tf
-│       ├── kubernetes.tf
-│       └── ecr.tf        # Container Registry
+│   └── terraform/            # Infrastructure as Code
+│       ├── main.tf           # VPC, EKS cluster
+│       ├── ec2.tf            # App Server (pulls from ECR)
+│       ├── lambda.tf         # Lambda + API Gateway
+│       ├── kubernetes.tf     # K8s deployment & service
+│       ├── ecr.tf            # Container registries
+│       └── outputs.tf        # Deployment endpoints
 │
-└── scripts/
-    ├── deploy_all.sh     # One-click deployment
-    ├── run-metrics.sh    # Metrics fetcher
-    └── run-tests.sh      # Integration tests
+├── load-testing/
+│   ├── benchmark.py
+│   └── locust/
+│       └── locustfile.py     # Load testing configuration
+│
+├── scripts/
+│   ├── deploy_all.sh         # One-click deployment
+│   ├── terraform_destroy_safe.sh  # Safe teardown
+│   ├── build_and_push.sh     # Build & push Lambda/K8s images
+│   └── run-tests.sh          # Integration tests
+│
+└── tests/
+    ├── test_backend.py
+    └── test_model.py
 ```
 
 ---
 
-## Deployment Workflow
-
-This project uses a fully automated CI/CD pipeline.
+## Deployment Guide
 
 ### Prerequisites
 
-* AWS CLI configured
-* Terraform installed
-* GitHub Repository Secrets Configured: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`
+- AWS CLI configured with appropriate credentials
+- Terraform installed (v1.0+)
+- Docker installed
+- GitHub Repository Secrets configured:
+  - `AWS_ACCESS_KEY_ID`
+  - `AWS_SECRET_ACCESS_KEY`
+  - `AWS_REGION`
 
 ---
 
-### 1. Build & Push (CI/CD)
+### Step 1: Initial Setup (One-Time)
 
-Simply push your code to the `main` branch.
-
-GitHub Actions will automatically:<br>
-**NOTE:** You need to have ECR repos named "nlp-backend" and "nlp-frontend" for these github actions to be succesfull.
-1. Build Docker images for Backend and Frontend.
-2. Authenticate with AWS.
-3. Push images to **Amazon ECR**.
-
----
-
-### 2. Deploy Infrastructure
-
-Run the automated deployment script locally. This provisions EC2/EKS/Lambda and configures the servers to pull the latest images.
+Before first deployment, create the ECR repositories that GitHub Actions needs:
 
 ```bash
-scripts/deploy_all.sh
+# Create ECR repositories
+aws ecr create-repository --repository-name nlp-backend --region us-east-1
+aws ecr create-repository --repository-name nlp-frontend --region us-east-1
+aws ecr create-repository --repository-name nlp-sentiment-analysis --region us-east-1
+aws ecr create-repository --repository-name nlp-sentiment-k8s --region us-east-1
 ```
 
 ---
 
-### 3. Configure Secrets
+### Step 2: Push Code to GitHub
 
-The EC2 instance needs environment variables (API Keys, etc.).
+Push your code to trigger GitHub Actions:
 
 ```bash
-# Get the App IP from the script output
-APP_IP=$(terraform output -raw app_server_public_ip)
-
-# Copy your local .env file to the server
-scp -i infrastructure/terraform/nlp-project-key.pem .env ubuntu@$APP_IP:~/.env
-
-# Move it to the app directory
-ssh -i infrastructure/terraform/nlp-project-key.pem ubuntu@$APP_IP "sudo mv ~/.env /home/ubuntu/app/.env"
+git add .
+git commit -m "Deploy infrastructure"
+git push origin main
 ```
 
-**Credentials on the EC2 instance**
-I attached an **IAM Instance Profile** (`AmazonEC2ContainerRegistryReadOnly`).
-This allows the server to securely pull Docker images from ECR without storing sensitive keys on disk.
+GitHub Actions will automatically:
+1. Build Docker images for Backend and Frontend
+2. Authenticate with AWS
+3. Push images to Amazon ECR
+
+---
+
+### Step 3: Build and Push Lambda/K8s Images
+
+Build and push the model images locally:
 
 ```bash
-# Get the App IP from the script output
-APP_IP=$(terraform output -raw app_server_public_ip)
+./scripts/build_and_push.sh
+```
 
-# Copy your local .env file to the server
-scp -i infrastructure/terraform/nlp-project-key.pem .env ubuntu@$APP_IP:~/.env
+This pushes:
+- `nlp-sentiment-analysis:latest` (for Lambda)
+- `nlp-sentiment-k8s:latest` (for Kubernetes)
+
+---
+
+### Step 4: Deploy Infrastructure
+
+Run the deployment script:
+
+```bash
+./scripts/deploy_all.sh
+```
+
+This script will:
+1. Initialize Terraform
+2. Import existing ECR repositories
+3. Create/update ECR repositories
+4. Check if images exist (build if missing)
+5. Deploy all infrastructure (VPC, EKS, EC2, Lambda, API Gateway)
+
+**Expected Output:**
+
+```
++------------------------------------------------------------------+
+|                    DEPLOYMENT COMPLETE!                          |
++------------------------------------------------------------------+
+|                                                                  |
+|  LAMBDA (Serverless)                                             |
+|  API Endpoint: https://xxx.execute-api.us-east-1.amazonaws.com/prod/predict
+|                                                                  |
+|  KUBERNETES (EKS)                                                |
+|  API Endpoint: http://xxx.us-east-1.elb.amazonaws.com/predict
+|                                                                  |
+|  EC2 INSTANCE (x.x.x.x)                                          |
+|  Frontend (Streamlit): http://x.x.x.x:8501
+|  Backend (FastAPI):    http://x.x.x.x:8000
+|                                                                  |
++------------------------------------------------------------------+
 ```
 
 ---
 
-### CI/CD & DevOps
+### Step 5: Configure Environment Variables (REQUIRED)
 
-#### Automated Image Builds (GitHub Actions)
+The EC2 instance needs your `.env` file with API keys and endpoints.
 
-I shifted from building Docker images on the production server (slow, resource-intensive) to a CI/CD pipeline.
+```bash
+# Get the EC2 IP from Terraform output
+cd infrastructure/terraform
+EC2_IP=$(terraform output -raw ec2_public_ip)
 
-* **Old Way:** `docker-compose build` on EC2.
-* **New Way:** GitHub Actions builds images and pushes to **Amazon ECR**. EC2 simply pulls the pre-built images.
-* **Benefit:** Faster deployment times and guaranteed consistency between environments.
+# Copy your .env file to the server
+scp -i nlp-project-key.pem ../../.env ubuntu@$EC2_IP:~/.env
 
-#### Docker Context & Volumes
+# Move it to the app directory and restart containers
+ssh -i nlp-project-key.pem ubuntu@$EC2_IP \
+  "sudo mv ~/.env /home/ubuntu/app/.env && \
+   cd /home/ubuntu/app && \
+   sudo docker-compose up -d --force-recreate"
+```
 
-I encountered issues where test scripts (`load-testing/`) were missing in the container due to `.dockerignore` rules or caching.
-
-* **Solution:** Use **Volume Mounts** in `docker-compose.yml` to map test scripts from the host directly into the container.
-
-This ensures the benchmark engine always has the latest scripts without requiring a full image rebuild.
+**Important:** The `.env` file must contain:
+- `LAMBDA_ENDPOINT` - Your Lambda API Gateway URL
+- `KUBERNETES_ENDPOINT` - Your K8s Load Balancer URL
+- `GROQ_API_KEY` - For AI-powered analysis (optional)
 
 ---
 
-## Application Architecture
+### Step 6: Access the Application
+
+| Service | URL |
+|---------|-----|
+| Streamlit Dashboard | `http://<EC2_IP>:8501` |
+| Backend API | `http://<EC2_IP>:8000` |
+| Lambda API | `https://<api-id>.execute-api.us-east-1.amazonaws.com/prod/predict` |
+| Kubernetes API | `http://<elb-hostname>/predict` |
+
+---
+
+## Teardown
+
+To destroy all infrastructure:
+
+```bash
+./scripts/terraform_destroy_safe.sh
+```
+
+This script:
+1. Destroys K8s service first (releases Load Balancer)
+2. Waits for ENIs to detach
+3. Destroys remaining infrastructure
+
+---
+
+## Daily Workflow
+
+| Action | Command |
+|--------|---------|
+| Deploy everything | `./scripts/deploy_all.sh` |
+| Destroy everything | `./scripts/terraform_destroy_safe.sh` |
+| Rebuild Lambda/K8s images | `./scripts/build_and_push.sh` |
+| Update backend/frontend | `git push origin main` (triggers GitHub Actions) |
+
+---
+
+## Testing and Benchmarking
+
+### Dashboard Features
+
+Access the Streamlit dashboard at `http://<EC2_IP>:8501`:
+
+1. **Live Comparison:** Send parallel requests to Lambda and Kubernetes
+2. **Load Testing:** Execute distributed Locust tests from the UI
+3. **AI Analysis:** Generate SRE-style performance reports using LLMs
+
+### Running Tests
+
+```bash
+# Run integration tests
+./scripts/run-tests.sh
+
+# Run load tests with Locust
+./scripts/run-locust.sh
+```
+
+---
+
+## Technical Notes
 
 ### Lambda Cold Starts vs. API Gateway Timeouts
 
-* **Problem:** Loading DistilBERT takes ~60s, exceeding the 29s API Gateway timeout.
-* **Solution:** The Orchestrator Backend implements exponential backoff — first request warms Lambda, second succeeds.
+- **Problem:** Loading DistilBERT takes ~60s, exceeding the 29s API Gateway timeout
+- **Solution:** The Backend implements exponential backoff - first request warms Lambda, second succeeds
 
 ### Kubernetes Networking
 
-LoadBalancer services take time to provision.
-Terraform outputs and scripts handle this asynchronous behavior.
+- LoadBalancer services take time to provision
+- Terraform outputs handle this asynchronous behavior
+- In production, use Ingress Controllers (ALB) for robust routing
 
-In production, I would use **Ingress Controllers (ALB)** for robust routing and health checks.
+### EC2 IAM Permissions
 
----
-
-## Observability & AI Analysis
-
-### Streamlit as an Ops Tool
-
-Using Streamlit with `st.session_state` turns a Python script into a **stateful operations dashboard**, enabling:
-
-* triggering background load tests
-* real-time visualization of results
-
-### AI-Driven Insights
-
-Integrating LLMs (Llama 3 via Groq) to analyze raw CSV metrics creates an **Automated SRE**, identifying patterns such as:
-
-* “Lambda latency spikes due to cold starts”
+The EC2 instance has an IAM Instance Profile with `AmazonEC2ContainerRegistryReadOnly` policy. This allows secure image pulls from ECR without storing credentials on disk.
 
 ---
 
-### 4. Restart Application
+## Troubleshooting
 
-Reload the containers to apply the new configuration.
+### ECR Repository Already Exists
+
+If Terraform fails with "repository already exists":
 
 ```bash
-ssh -i infrastructure/terraform/nlp-project-key.pem ubuntu@$APP_IP "cd app && sudo docker-compose up -d --force-recreate"
+cd infrastructure/terraform
+terraform import aws_ecr_repository.backend_repo nlp-backend
+terraform import aws_ecr_repository.frontend_repo nlp-frontend
+terraform import aws_ecr_repository.lambda_repo nlp-sentiment-analysis
+terraform import aws_ecr_repository.k8s_repo nlp-sentiment-k8s
 ```
 
----
+### Kubernetes Deployment Already Exists
 
-## Testing
+```bash
+terraform state rm kubernetes_deployment.nlp_deployment
+terraform state rm kubernetes_service.nlp_service
+terraform apply -auto-approve
+```
 
-### Dashboard & Benchmarking
+### Lambda Image Not Found
 
-The project includes a Streamlit dashboard for real-time benchmarking.
+Ensure images are pushed before creating Lambda:
 
-1. Access the dashboard at `http://<APP_IP>:8501`.
-2. **Live Comparison:** Send parallel requests to Lambda and Kubernetes.
-3. **Load Testing:** Execute distributed Locust tests from the UI.
-4. **AI Analysis:** Generate an SRE-style performance report using LLMs.
+```bash
+./scripts/build_and_push.sh
+terraform apply -auto-approve
+```
 
 ---
 
